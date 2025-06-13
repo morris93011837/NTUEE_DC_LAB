@@ -108,7 +108,7 @@ always_ff @(posedge i_clk or negedge i_rst_n) begin
         z_vel <= z_vel_init; // 90
     end 
     else if (i_mouse_left) begin
-        x_pos <= 16'd0;
+        x_pos <= $signed(i_mouse_x) - 16'sd1590;
         y_pos <= 16'd0;
         z_pos <= 16'd0;
         x_vel <= x_vel_init;
