@@ -1,0 +1,4 @@
+filename	address
+---------------------
+audio_battle.bin	0
+audio_opening.bin	143C0

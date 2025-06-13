@@ -1,0 +1,87 @@
+module display(
+    input i_rst_n,
+    input i_clk,
+
+    // VGA input output
+    input [9:0] i_red,
+    input [9:0] i_green,
+    input [9:0] i_blue,
+    output [9:0] o_red,
+    output [9:0] o_green,
+    output [9:0] o_blue,
+
+    // VGA control
+    input [12:0] i_h_count,
+    input [12:0] i_v_count
+
+    //input [12:0] i_h_min;
+    //input [12:0] i_h_max;
+    //input [12:0] i_v_min;
+    //input [12:0] i_v_max;
+
+    // image address
+    // input [15:0] i_address;
+    // output [31:0] o_q;
+);
+
+//	Horizontal Parameter	( Pixel )
+parameter	H_SYNC_CYC	=	128;
+parameter	H_SYNC_BACK	=	88;
+parameter	H_SYNC_ACT	=	800;	
+parameter	H_SYNC_FRONT=	40;
+parameter	H_SYNC_TOTAL=	1056;
+//	Vertical Parameter		( Line )
+parameter	V_SYNC_CYC	=	4;
+parameter	V_SYNC_BACK	=	23;
+parameter	V_SYNC_ACT	=	600;	
+parameter	V_SYNC_FRONT=	1;
+parameter	V_SYNC_TOTAL=	628;
+
+//	Start Offset
+parameter	X_START		=	H_SYNC_CYC+H_SYNC_BACK;
+parameter	Y_START		=	V_SYNC_CYC+V_SYNC_BACK;
+
+logic refresh, en1;
+logic [31:0] q;
+logic box, green_detected, green_detected_next;
+logic [15:0] green_cnt, green_cnt_next;
+
+assign refresh = (i_h_count == 0 && i_v_count == 0);
+assign box = (i_h_count>=X_START+300 && i_h_count<X_START+500 && i_v_count>=Y_START+200 && i_v_count<Y_START+400) ? 1 : 0;
+assign en1 = box & green_detected;
+
+assign o_red   = (en1) ? {q[31:24],2'b00} : i_red;
+assign o_green = (en1) ? {q[23:16],2'b00} : i_green;
+assign o_blue  = (en1) ? {q[15:8] ,2'b00} : i_blue;
+
+image pokemon(
+    .i_refresh(refresh),
+    .i_clk(i_clk),
+    .i_en(en1),
+    .i_address(0),
+    .o_q(q)
+);
+
+always_comb begin
+    if (refresh) begin
+        green_detected_next = (green_cnt >= 10000) ? 1 : 0;
+        green_cnt_next = 0;
+    end
+    else begin
+        green_detected_next = green_detected;
+        green_cnt_next = (box & (i_green[9:2] >= 96) & (i_red[9:2] < 128) & (i_blue[9:2] < 128)) ? green_cnt + 1 : green_cnt;
+    end
+end
+
+always_ff @(posedge i_clk or negedge i_rst_n) begin
+    if (!i_rst_n) begin
+        green_detected <= 0;
+        green_cnt      <= 0;
+    end 
+    else begin
+        green_detected <= green_detected_next;
+        green_cnt      <= green_cnt_next;
+    end
+end
+
+endmodule

@@ -1,0 +1,91 @@
+module ball(
+    input i_rst_n,
+    input i_clk,
+
+    input i_refresh,
+    input i_en,
+    input [31:0] i_address,
+    output [31:0] o_q
+);
+
+parameter S_ROTATE_0 = 2'b00;
+parameter S_ROTATE_1 = 2'b01;
+parameter S_ROTATE_2 = 2'b10;
+parameter S_ROTATE_3 = 2'b11;
+
+logic  [1:0] state, state_next;
+logic  [1:0] offset, offset_next;
+logic  [1:0] cnt, cnt_next;
+logic [31:0] starting_addr, address_next; // not sequential !!!
+logic  [7:0] x_coord, x_coord_next, y_coord, y_coord_next;
+
+rom image(
+    .address(address_next),
+    .clock(i_clk),
+    .q(o_q)
+);
+
+// Counter Logic
+always_comb begin
+    starting_addr = i_address + (offset * 40000);
+
+    offset_next = (!i_refresh || (cnt != 2'b10)) ? offset :
+                (offset == 2'b10) ? 2'b00 : 
+                offset + 1;
+
+    cnt_next = (!i_refresh) ? cnt :
+                (cnt == 2'b10) ? 2'b00 : 
+                cnt + 1;
+
+    x_coord_next = (i_refresh) ? 0 :
+                (!i_en) ? x_coord :
+                (x_coord == 199) ? 0 :
+                x_coord + 1;
+
+    y_coord_next = (i_refresh) ? 0 :
+                (!i_en) ? y_coord :
+                (x_coord == 199) ? y_coord + 1 :
+                y_coord;
+end
+
+// Rotation Logic
+always_comb begin
+    case (state)
+        S_ROTATE_0: begin
+            address_next = starting_addr + (y_coord_next * 200) + x_coord_next;
+        end
+        S_ROTATE_1: begin
+            address_next = starting_addr + (x_coord_next * 200) + (199 - y_coord_next);
+        end
+        S_ROTATE_2: begin
+            address_next = starting_addr + ((199 - y_coord_next) * 200) + (199 - x_coord_next);
+        end
+        S_ROTATE_3: begin
+            address_next = starting_addr + ((199 - x_coord_next) * 200) + y_coord_next;
+        end
+    endcase
+end
+
+// Finite State Mathine
+always_comb begin
+    state_next = (offset == 2'b10) ? state + 1 : state;
+end
+
+always_ff @(posedge i_clk or negedge i_rst_n) begin
+    if (!i_rst_n) begin
+        state   <= S_ROTATE_0;
+        offset  <= 0;
+        cnt     <= 0;
+        x_coord <= 0;
+        y_coord <= 0;
+    end 
+    else begin
+        state   <= state_next;
+        offset  <= offset_next;
+        cnt     <= cnt_next;
+        x_coord <= x_coord_next;
+        y_coord <= y_coord_next;
+    end
+end
+
+endmodule

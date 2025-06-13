@@ -1,0 +1,33 @@
+module image(
+    input i_refresh,
+    input i_clk,
+    input i_en,
+    input [31:0] i_address,
+    output [31:0] o_q
+);
+
+logic [31:0] address, address_next;
+
+images image(
+    .address(address_next),
+    .clock(i_clk),
+    .q(o_q)
+);
+
+always_comb begin
+    address_next = (i_en) ? address + 1 : address;
+end
+
+always_ff @(posedge i_clk or posedge i_refresh) begin
+    if (i_refresh) begin
+        // Reset logic here
+        address <= i_address;
+    end 
+    else begin
+        // Display logic here, e.g., reading from SRAM or updating display
+        // o_q <= some_value_based_on_i_address;
+        address <= address_next;
+    end
+end
+
+endmodule
